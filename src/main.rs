@@ -3,7 +3,7 @@ mod commands;
 mod database;
 use args::{AddSubCommands, Args, Commands};
 use clap::Parser;
-use commands::add_web_bookmark;
+use commands::{add_dir_bookmark, add_web_bookmark};
 use database::{check_db_exist, create_db};
 
 pub type Error = Box<dyn std::error::Error>;
@@ -19,7 +19,7 @@ fn main() {
     match args.command {
         Commands::Add(add_cmd) => match add_cmd {
             AddSubCommands::Dir { key, value, tags } => {
-                println!("Add Dir {key} | {value}, {tags:?}")
+                add_dir_bookmark(db_path, key, value, tags.unwrap_or(vec![])).unwrap()
             }
             AddSubCommands::Web { key, value, tags } => {
                 add_web_bookmark(db_path, key, value, tags.unwrap_or(vec![])).unwrap()

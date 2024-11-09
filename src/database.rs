@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{commands::WebBookmark, Error};
+use crate::{commands::BookmarkType, Error};
 use rusqlite::{params, Connection};
 
 pub fn create_db(db_path: &str) -> Result<(), Error> {
@@ -14,11 +14,39 @@ pub fn create_db(db_path: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn insert_web_bookmark(db_path: &str, bookmark: &WebBookmark) -> Result<(), Error> {
-    let conn = Connection::open(db_path)?;
-    let _ = conn.execute(INSERT_WEB_BOOKMARK, params![bookmark.key, bookmark.value])?;
+pub fn insert_bookmark(db_path: &str, bookmark: BookmarkType) -> Result<(), Error> {
+    let mut conn = Connection::open(db_path)?;
+    let query = match bookmark {
+        BookmarkType::Web(..) => INSERT_WEB_BOOKMARK,
+        BookmarkType::Dir(..) => INSERT_DIR_BOOKMARK,
+    };
+    let tx = conn.transaction()?;
+    let _ = tx.execute(query, params![bookmark.key(), bookmark.value()])?;
+    let bookmark_id = tx.last_insert_rowid();
+
+    let tags = bookmark.tags();
+    if tags.len() > 0 {
+        for tag in tags {
+            tx.execute(INSERT_TAG, params![tag])?;
+            let mut stmt = tx.prepare(SELECT_TAG)?;
+            let tag_id: i64 = stmt.query_row(params![tag], |row| row.get(0))?;
+
+            tx.execute(
+                INSERT_BOOKMARK_TAG,
+                params![bookmark_id, tag_id, bookmark.as_string()],
+            )?;
+        }
+    }
+    tx.commit()?;
 
     Ok(())
+}
+
+pub fn insert_tag(db_path: &str, tag: &str) -> Result<i64, Error> {
+    let conn = Connection::open(db_path)?;
+    let _ = conn.execute(INSERT_TAG, params![tag])?;
+    let last_inserted_id = conn.last_insert_rowid();
+    Ok(last_inserted_id)
 }
 
 pub fn check_db_exist(db_path: &str) -> bool {
@@ -55,9 +83,22 @@ const CREATE_TAGS_TABLE: &str = "
 );";
 
 const INSERT_TAG: &str = "
-    INSERT INTO tags (name) VALUES (?);
+    INSERT OR IGNORE INTO tags (name) VALUES (?);
+";
+
+const INSERT_BOOKMARK_TAG: &str = "
+    INSERT INTO bookmark_tags (bookmark_id, tag_id, bookmark_type) 
+    VALUES (?, ?, ?);
 ";
 
 const INSERT_WEB_BOOKMARK: &str = "
-    INSERT INTO web_bookmarks (key, url) VALUES (?,?)
+    INSERT INTO web_bookmarks (key, url) VALUES (?,?);
+";
+
+const INSERT_DIR_BOOKMARK: &str = "
+    INSERT INTO dir_bookmarks (key, path) VALUES (?,?);
+";
+
+const SELECT_TAG: &str = "
+    SELECT id FROM tags WHERE name = ?;
 ";
