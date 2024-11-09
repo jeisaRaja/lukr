@@ -1,9 +1,15 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 pub struct Args {
     #[command(subcommand)]
     pub command: Commands,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+pub enum ListType {
+    Web,
+    Dir,
 }
 
 #[derive(Subcommand)]
@@ -12,8 +18,8 @@ pub enum Commands {
     Add(AddSubCommands),
 
     List {
-        #[arg()]
-        value: i16,
+        #[arg(short, long = "type", help = "Specify the type of item to list")]
+        item_type: ListType,
 
         #[arg(short, long, use_value_delimiter = true)]
         tags: Option<Vec<String>>,

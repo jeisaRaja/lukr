@@ -1,6 +1,10 @@
 use std::path::Path;
 
-use crate::{commands::BookmarkType, Error};
+use crate::{
+    args::ListType,
+    commands::{BookmarkType, DirBookmark, WebBookmark},
+    Error,
+};
 use rusqlite::{params, Connection};
 
 pub fn create_db(db_path: &str) -> Result<(), Error> {
@@ -40,6 +44,38 @@ pub fn insert_bookmark(db_path: &str, bookmark: BookmarkType) -> Result<(), Erro
     tx.commit()?;
 
     Ok(())
+}
+
+pub fn select_bookmark(
+    db_path: &str,
+    key: &str,
+    item_type: ListType,
+) -> Result<BookmarkType, Error> {
+    let conn = Connection::open(db_path)?;
+    let bookmark = match item_type {
+        ListType::Dir => {
+            let bookmark = conn.query_row(SELECT_DIR_BOOKMARK, params![key], |row| {
+                Ok(DirBookmark::new(
+                    key.to_string(),
+                    row.get(1).unwrap(),
+                    vec![],
+                ))
+            })?;
+            BookmarkType::Dir(bookmark)
+        }
+        ListType::Web => {
+            let bookmark = conn.query_row(SELECT_WEB_BOOKMARK, params![key], |row| {
+                Ok(WebBookmark::new(
+                    key.to_string(),
+                    row.get(1).unwrap(),
+                    vec![],
+                ))
+            })?;
+            BookmarkType::Web(bookmark)
+        }
+    };
+
+    Ok(bookmark)
 }
 
 pub fn insert_tag(db_path: &str, tag: &str) -> Result<i64, Error> {
@@ -92,13 +128,21 @@ const INSERT_BOOKMARK_TAG: &str = "
 ";
 
 const INSERT_WEB_BOOKMARK: &str = "
-    INSERT INTO web_bookmarks (key, url) VALUES (?,?);
+    INSERT OR IGNORE INTO web_bookmarks (key, url) VALUES (?,?);
 ";
 
 const INSERT_DIR_BOOKMARK: &str = "
-    INSERT INTO dir_bookmarks (key, path) VALUES (?,?);
+    INSERT OR IGNORE INTO dir_bookmarks (key, path) VALUES (?,?);
 ";
 
 const SELECT_TAG: &str = "
     SELECT id FROM tags WHERE name = ?;
+";
+
+const SELECT_WEB_BOOKMARK: &str = "
+        SELECT key, url FROM web_bookmarks WHERE key = (?);
+";
+
+const SELECT_DIR_BOOKMARK: &str = "
+        SELECT key, path FROM dir_bookmarks WHERE key = (?);
 ";

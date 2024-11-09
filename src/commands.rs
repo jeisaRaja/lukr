@@ -1,19 +1,23 @@
 use std::env;
+use url::Url;
 
 use crate::{database::insert_bookmark, Error};
 
+#[derive(Debug)]
 pub struct WebBookmark {
     pub key: String,
     pub value: String,
     pub tags: Vec<String>,
 }
 
+#[derive(Debug)]
 pub struct DirBookmark {
     pub key: String,
     pub value: String,
     pub tags: Vec<String>,
 }
 
+#[derive(Debug)]
 pub enum BookmarkType {
     Web(WebBookmark),
     Dir(DirBookmark),
@@ -70,6 +74,16 @@ impl WebBookmark {
     pub fn new(key: String, value: String, tags: Vec<String>) -> Self {
         Self { key, value, tags }
     }
+
+    pub fn to_valid_url(input: &str) -> Result<String, Error> {
+        if let Ok(url) = Url::parse(input) {
+            return Ok(url.to_string());
+        }
+
+        let prefixed_url = format!("https://wwww.{input}");
+
+        Ok(Url::parse(&prefixed_url)?.to_string())
+    }
 }
 
 pub fn add_web_bookmark(
@@ -78,7 +92,8 @@ pub fn add_web_bookmark(
     value: String,
     tags: Vec<String>,
 ) -> Result<(), Error> {
-    let bookmark = WebBookmark::new(key, value, tags);
+    let mut bookmark = WebBookmark::new(key, value, tags);
+    bookmark.value = WebBookmark::to_valid_url(&bookmark.value)?;
 
     insert_bookmark(db_path, BookmarkType::Web(bookmark))
 }
@@ -91,5 +106,6 @@ pub fn add_dir_bookmark(
 ) -> Result<(), Error> {
     let mut bookmark = DirBookmark::new(key, value, tags);
     bookmark.value = DirBookmark::get_full_path(&bookmark.value)?;
+
     insert_bookmark(db_path, BookmarkType::Dir(bookmark))
 }

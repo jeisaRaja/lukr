@@ -1,10 +1,10 @@
 mod args;
 mod commands;
 mod database;
-use args::{AddSubCommands, Args, Commands};
+use args::{AddSubCommands, Args, Commands, ListType};
 use clap::Parser;
 use commands::{add_dir_bookmark, add_web_bookmark};
-use database::{check_db_exist, create_db};
+use database::{check_db_exist, create_db, select_bookmark};
 
 pub type Error = Box<dyn std::error::Error>;
 
@@ -25,8 +25,14 @@ fn main() {
                 add_web_bookmark(db_path, key, value, tags.unwrap_or(vec![])).unwrap()
             }
         },
-        Commands::Dir { key, tags } => println!("Dir {key} {tags:?}"),
-        Commands::Web { key, tags } => println!("Web {key} {tags:?}"),
-        Commands::List { value, tags: _ } => println!("List {value}"),
+        Commands::Dir { key, tags: _ } => {
+            let bookmark = select_bookmark(db_path, &key, ListType::Dir);
+            println!("{bookmark:?}")
+        }
+        Commands::Web { key, tags: _ } => {
+            let bookmark = select_bookmark(db_path, &key, ListType::Web);
+            println!("{bookmark:?}")
+        }
+        Commands::List { tags: _, item_type } => println!("List {item_type:?}"),
     }
 }
