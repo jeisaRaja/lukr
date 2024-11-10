@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 use crate::{
     args::ListType,
@@ -7,9 +7,9 @@ use crate::{
 };
 use rusqlite::{params, Connection};
 
-pub fn create_db(db_path: &str) -> Result<(), Error> {
+pub fn create_db(db_path: &PathBuf) -> Result<(), Error> {
+    println!("creating db at {db_path:?}");
     let conn = Connection::open(db_path)?;
-
     let _ = conn.execute(CREATE_DIR_BOOKMARKS_TABLE, params![])?;
     let _ = conn.execute(CREATE_WEB_BOOKMARKS_TABLE, params![])?;
     let _ = conn.execute(CREATE_TAGS_TABLE, params![])?;
@@ -83,10 +83,6 @@ pub fn insert_tag(db_path: &str, tag: &str) -> Result<i64, Error> {
     let _ = conn.execute(INSERT_TAG, params![tag])?;
     let last_inserted_id = conn.last_insert_rowid();
     Ok(last_inserted_id)
-}
-
-pub fn check_db_exist(db_path: &str) -> bool {
-    Path::new(db_path).exists()
 }
 
 const CREATE_DIR_BOOKMARKS_TABLE: &str = "

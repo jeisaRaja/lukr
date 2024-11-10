@@ -1,7 +1,11 @@
 use std::env;
 use url::Url;
 
-use crate::{database::insert_bookmark, Error};
+use crate::{
+    args::ListType,
+    database::{self, insert_bookmark},
+    Error,
+};
 
 #[derive(Debug)]
 pub struct WebBookmark {
@@ -108,4 +112,10 @@ pub fn add_dir_bookmark(
     bookmark.value = DirBookmark::get_full_path(&bookmark.value)?;
 
     insert_bookmark(db_path, BookmarkType::Dir(bookmark))
+}
+
+pub fn select_bookmark(db_path: &str, key: &str, item_type: ListType) -> String {
+    let bookmark = database::select_bookmark(db_path, key, item_type).unwrap();
+
+    bookmark.value().clone()
 }
